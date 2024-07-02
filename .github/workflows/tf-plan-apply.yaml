@@ -27,7 +27,7 @@ env:
   ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID}}
 
 jobs:
-  terraform_plan:
+  terraform-plan:
     name: "Terraform Infrastructure Change Management"
     runs-on: ubuntu-latest
     outputs:
@@ -121,7 +121,7 @@ jobs:
   apply:
     name: Terraform Apply
     if: github.ref == 'refs/heads/main' && needs.terraform-plan.outputs.tfplanExitCode == 2
-    needs: [terraform_plan]
+    needs: [terraform-plan]
     runs-on: ubuntu-latest
     environment: Prod
     steps:
