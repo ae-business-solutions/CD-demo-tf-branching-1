@@ -121,7 +121,8 @@ jobs:
 
   apply:
     name: Terraform Apply
-    if: github.ref == 'refs/heads/main' && needs.terraform-plan.outputs.tfplanExitCode == 2
+    # Run if merging into main, OR pull request
+    if: (github.ref == 'refs/heads/main' || github.event_name == 'pull_request') && needs.terraform-plan.outputs.tfplanExitCode == 2
     needs: [terraform-plan]
     runs-on: ubuntu-latest
     environment: Prod
