@@ -8,7 +8,7 @@ resource "random_id" "storage" {
 }
 
 resource "azurerm_storage_account" "example" {
-  name                     = "tfexample${ random_id.storage.id }"
+  name                     = "tfexample${ lower(random_id.storage.id) }"
   resource_group_name      = azurerm_resource_group.terraform_demo.name
   location                 = azurerm_resource_group.terraform_demo.location
   account_tier             = "Standard"

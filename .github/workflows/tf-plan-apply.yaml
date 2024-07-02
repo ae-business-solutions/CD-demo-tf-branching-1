@@ -121,7 +121,8 @@ jobs:
 
   apply:
     name: Terraform Apply
-    if: github.ref == 'refs/heads/main' && needs.terraform-plan.outputs.tfplanExitCode == 2
+    # Run if merging into main, OR pull request
+    if: (github.ref == 'refs/heads/main' || github.event_name == 'pull_request') && needs.terraform-plan.outputs.tfplanExitCode == 2
     needs: [terraform-plan]
     runs-on: ubuntu-latest
     environment: Prod
@@ -148,7 +149,7 @@ jobs:
         id: tf-apply
         run: |
           terraform apply -auto-approve -input=false tfplan | tee apply.log
-          grep --color=never -r "Apply complete!" apply.log >> $GITHUB_OUTPUT
+          echo "summary=$(grep --color=never -r "Apply complete!" apply.log)" >> $GITHUB_OUTPUT
       
        # Publish Terraform Apply as task summary
       - name: Publish Terraform Apply to Task Summary
