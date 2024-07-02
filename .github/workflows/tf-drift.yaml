@@ -3,46 +3,41 @@ name: 'Terraform Configuration Drift Detection'
 on:
   workflow_dispatch: 
   schedule:
-    - cron: '41 3 * * *' # runs nightly at 3:41 am
+    - cron: 0 4 * * *' # runs nightly at 4:00 am
 
-#Special permissions required for OIDC authentication
 permissions:
   id-token: write
   contents: read
   issues: write
 
-#These environment variables are used by the terraform azure provider to setup OIDD authenticate. 
 env:
-  ARM_CLIENT_ID: "${{ secrets.AZURE_CLIENT_ID }}"
-  ARM_SUBSCRIPTION_ID: "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-  ARM_TENANT_ID: "${{ secrets.AZURE_TENANT_ID }}"
+  TERRAFORM_VERSION: 1.8.3
+  TF_LOG: INFO
+  ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+  ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID}}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID}}
 
 jobs:
   terraform-plan:
     name: 'Terraform Plan'
     runs-on: ubuntu-latest
-    env:
-      #this is needed since we are running terraform with read-only permissions
-      ARM_SKIP_PROVIDER_REGISTRATION: true
     outputs:
       tfplanExitCode: ${{ steps.tf-plan.outputs.exitcode }}
 
     steps:
-    # Checkout the repository to the GitHub Actions runner
     - name: Checkout
       uses: actions/checkout@v4
 
-    # Install the latest version of the Terraform CLI
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
       with:
+        terraform_version: $TERRAFORM_VERSION
         terraform_wrapper: false
 
-    # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
     - name: Terraform Init
       run: terraform init
 
-    # Generates an execution plan for Terraform
     # An exit code of 0 indicated no changes, 1 a terraform failure, 2 there are pending changes.
     - name: Terraform Plan
       id: tf-plan
