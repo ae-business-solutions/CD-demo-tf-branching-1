@@ -1,0 +1,146 @@
+name: "Terraform Plan and Apply"
+
+on: 
+  push: 
+    branches:
+    - main
+    paths:
+    - '**.tf'
+    - '.github/workflows/*'
+  pull_request:
+    branches:
+    - main
+    paths:
+    - '**.tf'
+    - '.github/workflows/*'
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+env:
+  TF_LOG: INFO
+  ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+  ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID}}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID}}
+
+jobs:
+  terraform_plan:
+    name: "Terraform Infrastructure Change Management"
+    runs-on: ubuntu-latest
+    outputs:
+      tfplanExitCode: ${{ steps.tf-plan.outputs.exitcode }}
+    steps:
+      - name: Checkout the repository to the runner
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.3
+          terraform_wrapper: false
+
+      - name: Terraform format
+        id: fmt
+        run: terraform fmt -check
+        continue-on-error: true
+
+      - name: Terraform init
+        id: init
+        run: terraform init
+
+      - name: Terraform validate
+        id: validate
+        run: terraform validate -no-color
+
+        # An exit code of 0 indicated no changes, 1 a terraform failure, 2 there are pending changes.
+      - name: Terraform plan
+        id: tf-plan
+        run: |
+          export exitcode=0
+          terraform plan -detailed-exitcode -no-color -out tfplan || export exitcode=$?
+
+          echo "exitcode=$exitcode" >> $GITHUB_OUTPUT
+          
+          if [ $exitcode -eq 1 ]; then
+            echo Terraform Plan Failed!
+            exit 1
+          else 
+            exit 0
+          fi
+
+      - name: Publish Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: tfplan
+      
+      # Create string output of Terraform Plan
+      - name: Create String Output
+        id: tf-plan-string
+        run: |
+          TERRAFORM_PLAN=$(terraform show -no-color tfplan)
+          
+          delimiter="$(openssl rand -hex 8)"
+          echo "summary<<${delimiter}" >> $GITHUB_OUTPUT
+          echo "## Terraform Plan Output" >> $GITHUB_OUTPUT
+          echo "<details><summary>Click to expand</summary>" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo '```terraform' >> $GITHUB_OUTPUT
+          echo "$TERRAFORM_PLAN" >> $GITHUB_OUTPUT
+          echo '```' >> $GITHUB_OUTPUT
+          echo "</details>" >> $GITHUB_OUTPUT
+          echo "${delimiter}" >> $GITHUB_OUTPUT
+
+       # Publish Terraform Plan as task summary
+      - name: Publish Terraform Plan to Task Summary
+        env:
+          SUMMARY: ${{ steps.tf-plan-string.outputs.summary }}
+        run: |
+          echo "$SUMMARY" >> $GITHUB_STEP_SUMMARY
+      
+      # If this is a PR post the changes
+      - name: Push Terraform Output to PR
+        if: github.ref != 'refs/heads/main' && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          SUMMARY: "${{ steps.tf-plan-string.outputs.summary }}"
+        with:
+            github-token: ${{ secrets.GITHUB_TOKEN }}
+            script: |
+              const body = `${process.env.SUMMARY}`;
+              github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: body
+              })
+
+  apply:
+    name: Terraform Apply
+    if: github.ref == 'refs/heads/main' && needs.terraform-plan.outputs.tfplanExitCode == 2
+    needs: [terraform_plan]
+    runs-on: ubuntu-latest
+    environment: Prod
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform with specified version on the runner
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.3
+      
+      - name: Terraform init
+        id: init
+        run: terraform init
+
+      - name: Download Plan File
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve -input=false tfplan
