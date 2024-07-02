@@ -6,11 +6,13 @@ on:
     - main
     paths:
     - '**.tf'
+    - '.github/workflows/*'
   pull_request:
     branches:
     - main
     paths:
     - '**.tf'
+    - '.github/workflows/*'
 
 env:
   TF_LOG: INFO
