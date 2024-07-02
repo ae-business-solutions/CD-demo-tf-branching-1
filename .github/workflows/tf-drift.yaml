@@ -1,9 +1,9 @@
-name: 'Terraform Configuration Drift Detection'
+name: "Terraform Drift Detection"
 
 on:
   workflow_dispatch: 
   schedule:
-    - cron: 0 4 * * *' # runs nightly at 4:00 am
+    - cron: "0 4 * * *" # runs nightly at 4:00 am
 
 permissions:
   id-token: write
