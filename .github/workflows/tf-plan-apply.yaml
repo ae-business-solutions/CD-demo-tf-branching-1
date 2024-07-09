@@ -30,7 +30,7 @@ jobs:
     name: "Terraform Infrastructure Change Management"
     runs-on: ubuntu-latest
     outputs:
-      tfplanExitCode: ${{ steps.tf-plan.outputs.exitcode }}
+      tfplanExitCode-${{ matrix.tf_env }}: ${{ steps.tf-plan.outputs.exitcode }}
     strategy:
       matrix:
         tf_env: ["prod", "nonprod"]
@@ -61,7 +61,7 @@ jobs:
 
         # An exit code of 0 indicated no changes, 1 a terraform failure, 2 there are pending changes.
       - name: Terraform plan
-        id: tf-plan
+        id: tf-plan-${{ matrix.tf_env }}
         env: 
           TF_ENV: ${{ matrix.tf_env }}
         run: |
@@ -127,10 +127,13 @@ jobs:
   terraform-apply:
     name: Terraform Apply
     # Run if merging into main, OR pull request
-    if: (github.ref == 'refs/heads/main' || github.event_name == 'pull_request') && needs.terraform-plan.outputs.tfplanExitCode == 2
+    if: (github.ref == 'refs/heads/main' || github.event_name == 'pull_request') && needs.terraform-plan.outputs.tfplanExitCode-${{ matrix.tf_env }} == 2
     needs: [terraform-plan]
     runs-on: ubuntu-latest
-    environment: prod
+    strategy:
+      matrix:
+        tf_env: ["prod", "nonprod"]
+    environment: ${{ matrix.tf_env }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -143,12 +146,14 @@ jobs:
       
       - name: Terraform init
         id: init
-        run: terraform init
+        env:
+          TF_ENV: ${{ matrix.tf_env }}
+        run: terraform init -backend-config="key=$TF_ENV.tfstate" -backend-config="container_name=$TF_ENV-branching-state"
 
       - name: Download Plan File
         uses: actions/download-artifact@v4
         with:
-          name: tfplan
+          name: tfplan-${{ matrix.tf_env }}
 
       - name: Terraform Apply
         id: tf-apply
