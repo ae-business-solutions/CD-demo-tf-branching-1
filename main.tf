@@ -1,6 +1,14 @@
+locals {
+  tags = {
+    Environment      = "${var.environment}"
+    MaintainedBy     = "CD"
+  }
+}
+
 resource "azurerm_resource_group" "terraform_demo" {
   name     = "cd-rg-${var.environment}-tf-branching"
   location = "Central US"
+  tags = local.tags
 }
 
 resource "random_id" "storage" {
@@ -13,4 +21,5 @@ resource "azurerm_storage_account" "example" {
   location                 = azurerm_resource_group.terraform_demo.location
   account_tier             = "Standard"
   account_replication_type = "LRS"
+  tags = local.tags
 }
