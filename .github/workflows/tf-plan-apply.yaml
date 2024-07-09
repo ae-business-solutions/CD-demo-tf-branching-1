@@ -30,7 +30,8 @@ jobs:
     name: "Terraform Infrastructure Change Management"
     runs-on: ubuntu-latest
     outputs:
-      tfplanOutputs: ${{ steps.tf-plan.outputs }}
+      tfplanOutput-prod: ${{ steps.tf-plan.outputs.exitcode-prod }}
+      tfplanOutput-nonprod: ${{ steps.tf-plan.outputs.exitcode-nonprod }}
     strategy:
       matrix:
         tf_env: ["prod", "nonprod"]
@@ -136,39 +137,39 @@ jobs:
     environment: ${{ matrix.tf_env }}
     steps:
       - name: Checkout
-        if: needs.terraform-plan.outputs.tfplanOutputs.exitcode-${{ matrix.tf_env }} == 2
+        if: needs.terraform-plan.outputs.tfplanOutput-${{ matrix.tf_env }} == 2
         uses: actions/checkout@v4
 
       - name: Setup Terraform with specified version on the runner
         uses: hashicorp/setup-terraform@v3
-        if: needs.terraform-plan.outputs.tfplanOutputs.exitcode-${{ matrix.tf_env }} == 2
+        if: needs.terraform-plan.outputs.tfplanOutput-${{ matrix.tf_env }} == 2
         with:
           terraform_version: $TERRAFORM_VERSION
           terraform_wrapper: false
       
       - name: Terraform init
         id: init
-        if: needs.terraform-plan.outputs.tfplanOutputs.exitcode-${{ matrix.tf_env }} == 2
+        if: needs.terraform-plan.outputs.tfplanOutput-${{ matrix.tf_env }} == 2
         env:
           TF_ENV: ${{ matrix.tf_env }}
         run: terraform init -backend-config="key=$TF_ENV.tfstate" -backend-config="container_name=$TF_ENV-branching-state"
 
       - name: Download Plan File
         uses: actions/download-artifact@v4
-        if: needs.terraform-plan.outputs.tfplanOutputs.exitcode-${{ matrix.tf_env }} == 2
+        if: needs.terraform-plan.outputs.tfplanOutput-${{ matrix.tf_env }} == 2
         with:
           name: tfplan-${{ matrix.tf_env }}
 
       - name: Terraform Apply
         id: tf-apply
-        if: needs.terraform-plan.outputs.tfplanOutputs.exitcode-${{ matrix.tf_env }} == 2
+        if: needs.terraform-plan.outputs.tfplanOutput-${{ matrix.tf_env }} == 2
         run: |
           terraform apply -auto-approve -input=false tfplan | tee apply.log
           echo "summary=$(grep --color=never -r "Apply complete!" apply.log)" >> $GITHUB_OUTPUT
       
        # Publish Terraform Apply as task summary
       - name: Publish Terraform Apply to Task Summary
-        if: needs.terraform-plan.outputs.tfplanOutputs.exitcode-${{ matrix.tf_env }} == 2
+        if: needs.terraform-plan.outputs.tfplanOutput-${{ matrix.tf_env }} == 2
         env:
           SUMMARY: ${{ steps.tf-apply.outputs.summary }}
         run: |
@@ -176,7 +177,7 @@ jobs:
       
       # If this is a PR post the changes
       - name: Push Terraform Output to PR
-        if: github.ref != 'refs/heads/main' && github.event_name == 'pull_request' && needs.terraform-plan.outputs.tfplanOutputs.exitcode-${{ matrix.tf_env }} == 2
+        if: github.ref != 'refs/heads/main' && github.event_name == 'pull_request' && needs.terraform-plan.outputs.tfplanOutput-${{ matrix.tf_env }} == 2
         uses: actions/github-script@v7
         with:
             github-token: ${{ secrets.GITHUB_TOKEN }}
