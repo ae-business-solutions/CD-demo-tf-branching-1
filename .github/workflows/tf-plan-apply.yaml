@@ -34,7 +34,6 @@ jobs:
     strategy:
       matrix:
         tf_env: ["prod", "nonprod"]
-    environment: ${{ matrix.tf_env }}
     steps:
       - name: Checkout the repository to the runner
         uses: actions/checkout@v4
