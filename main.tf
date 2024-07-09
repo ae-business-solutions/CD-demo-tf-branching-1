@@ -1,5 +1,5 @@
 resource "azurerm_resource_group" "terraform_demo" {
-  name     = "cd-rg-demo-tf-branching-1${var.environment}"
+  name     = "cd-rg-${var.environment}-tf-branching"
   location = "Central US"
 }
 
