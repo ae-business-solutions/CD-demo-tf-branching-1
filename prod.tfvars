@@ -1,1 +1,1 @@
-environment="nonprod"
+environment = "nonprod"
