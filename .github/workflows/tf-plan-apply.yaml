@@ -33,7 +33,7 @@ jobs:
       tfplanExitCode: ${{ steps.tf-plan.outputs.exitcode }}
     strategy:
       matrix:
-        environment: ["prod", "nonprod"]
+        tf_env: ["prod", "nonprod"]
     environment: ${{ matrix.environment }}
     steps:
       - name: Checkout the repository to the runner
@@ -52,7 +52,9 @@ jobs:
 
       - name: Terraform init
         id: init
-        run: terraform init
+        env:
+          TF_ENV: ${{ matrix.tf_env }}
+        run: terraform init -backend-config='key=$TF_ENV.tfstate'
 
       - name: Terraform validate
         id: validate
@@ -62,7 +64,7 @@ jobs:
       - name: Terraform plan
         id: tf-plan
         env: 
-          TF_ENV: ${{ matrix.environment }}
+          TF_ENV: ${{ matrix.tf_env }}
         run: |
           export exitcode=0
           terraform plan -var-file=$TF_ENV -detailed-exitcode -no-color -out tfplan || export exitcode=$?
