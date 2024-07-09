@@ -23,6 +23,7 @@ jobs:
     name: 'Terraform Drift'
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         target: [prod, nonprod]
     steps:
