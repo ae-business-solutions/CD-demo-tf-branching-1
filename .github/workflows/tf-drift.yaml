@@ -19,12 +19,12 @@ env:
   ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID}}
 
 jobs:
-  terraform-plan:
-    name: 'Terraform Plan'
+  terraform-drift:
+    name: 'Terraform Drift'
     runs-on: ubuntu-latest
-    outputs:
-      tfplanExitCode: ${{ steps.tf-plan.outputs.exitcode }}
-
+    strategy:
+      matrix:
+        target: [prod, nonprod]
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -39,12 +39,14 @@ jobs:
       run: terraform init
 
     # An exit code of 0 indicated no changes, 1 a terraform failure, 2 there are pending changes.
-    - name: Terraform Plan
+    - name: Terraform plan
       id: tf-plan
+      env: 
+        TF_ENV: ${{ matrix.target }}
       run: |
         export exitcode=0
-        terraform plan -detailed-exitcode -no-color -out tfplan || export exitcode=$?
-        
+        terraform plan -var-file=$TF_ENV.tfvars -detailed-exitcode -no-color -out tfplan || export exitcode=$?
+
         echo "exitcode=$exitcode" >> $GITHUB_OUTPUT
         
         if [ $exitcode -eq 1 ]; then
@@ -53,13 +55,6 @@ jobs:
         else 
           exit 0
         fi
-        
-    # Save plan to artifacts  
-    - name: Publish Terraform Plan
-      uses: actions/upload-artifact@v4
-      with:
-        name: tfplan
-        path: tfplan
         
     # Create string output of Terraform Plan
     - name: Create String Output
@@ -91,11 +86,12 @@ jobs:
       uses: actions/github-script@v7
       env:
         SUMMARY: "${{ steps.tf-plan-string.outputs.summary }}"
+        TF_ENV: ${{ matrix.target }}
       with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const body = `${process.env.SUMMARY}`;
-            const title = 'Terraform Configuration Drift Detected';
+            const title = 'Terraform Configuration Drift Detected in $TF_ENV';
             const creator = 'github-actions[bot]'
           
             // Look to see if there is an existing drift issue
@@ -140,7 +136,7 @@ jobs:
       with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const title = 'Terraform Configuration Drift Detected';
+            const title = 'Terraform Configuration Drift Detected in $TF_ENV';
             const creator = 'github-actions[bot]'
           
             // Look to see if there is an existing drift issue
@@ -162,7 +158,7 @@ jobs:
                 state: 'closed'
               })
             } 
-             
+
     # Mark the workflow as failed if drift detected 
     - name: Error on Failure
       if: steps.tf-plan.outputs.exitcode == 2
