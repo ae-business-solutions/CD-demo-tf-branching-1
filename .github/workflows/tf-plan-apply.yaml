@@ -30,7 +30,7 @@ jobs:
     name: "Terraform Infrastructure Change Management"
     runs-on: ubuntu-latest
     outputs:
-      tfplanExitCode-${{ matrix.tf_env }}: ${{ steps.tf-plan.outputs.exitcode }}
+      tfplanOutputs: ${{ steps.tf-plan.outputs }}
     strategy:
       matrix:
         tf_env: ["prod", "nonprod"]
@@ -61,14 +61,14 @@ jobs:
 
         # An exit code of 0 indicated no changes, 1 a terraform failure, 2 there are pending changes.
       - name: Terraform plan
-        id: tf-plan-${{ matrix.tf_env }}
+        id: tf-plan
         env: 
           TF_ENV: ${{ matrix.tf_env }}
         run: |
           export exitcode=0
           terraform plan -var-file=$TF_ENV.tfvars -detailed-exitcode -no-color -out tfplan || export exitcode=$?
 
-          echo "exitcode=$exitcode" >> $GITHUB_OUTPUT
+          echo "exitcode-$TF_ENV=$exitcode" >> $GITHUB_OUTPUT
           
           if [ $exitcode -eq 1 ]; then
             echo Terraform Plan Failed!
@@ -127,7 +127,7 @@ jobs:
   terraform-apply:
     name: Terraform Apply
     # Run if merging into main, OR pull request
-    if: (github.ref == 'refs/heads/main' || github.event_name == 'pull_request') && needs.terraform-plan.outputs.tfplanExitCode-${{ matrix.tf_env }} == 2
+    if: (github.ref == 'refs/heads/main' || github.event_name == 'pull_request') && needs.terraform-plan.outputs.tfplanOutputs.exitcode-${{ matrix.tf_env }}== 2
     needs: [terraform-plan]
     runs-on: ubuntu-latest
     strategy:
