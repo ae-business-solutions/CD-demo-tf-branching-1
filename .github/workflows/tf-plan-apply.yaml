@@ -30,7 +30,7 @@ env:
 
 jobs:
   terraform-plan:
-    name: "Terraform Infrastructure Change Management"
+    name: "Terraform Plan"
     runs-on: ubuntu-latest
     outputs:
       tfplanOutput: ${{ steps.tf-plan.outputs.exitcode }}
