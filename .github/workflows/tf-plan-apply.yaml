@@ -1,9 +1,7 @@
 name: "Terraform Plan and Apply"
 
-on: 
-  push: 
-    branches:
-    - main
+on:
+  push:
     paths:
     - '**.tf'
     - '.github/workflows/*'
@@ -33,6 +31,10 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tfplanExitCode: ${{ steps.tf-plan.outputs.exitcode }}
+    strategy:
+      matrix:
+        environment: ["prod", "nonprod"]
+    environment: ${{ matrix.environment }}
     steps:
       - name: Checkout the repository to the runner
         uses: actions/checkout@v4
@@ -59,9 +61,11 @@ jobs:
         # An exit code of 0 indicated no changes, 1 a terraform failure, 2 there are pending changes.
       - name: Terraform plan
         id: tf-plan
+        env: 
+          TF_ENV: ${{ matrix.environment }}
         run: |
           export exitcode=0
-          terraform plan -detailed-exitcode -no-color -out tfplan || export exitcode=$?
+          terraform plan -var-file=$TF_ENV -detailed-exitcode -no-color -out tfplan || export exitcode=$?
 
           echo "exitcode=$exitcode" >> $GITHUB_OUTPUT
           
@@ -75,7 +79,7 @@ jobs:
       - name: Publish Plan
         uses: actions/upload-artifact@v4
         with:
-          name: tfplan
+          name: tfplan-${{ matrix.environment }}
           path: tfplan
       
       # Create string output of Terraform Plan
@@ -119,13 +123,13 @@ jobs:
                   body: body
               })
 
-  apply:
+  terraform-apply:
     name: Terraform Apply
     # Run if merging into main, OR pull request
     if: (github.ref == 'refs/heads/main' || github.event_name == 'pull_request') && needs.terraform-plan.outputs.tfplanExitCode == 2
     needs: [terraform-plan]
     runs-on: ubuntu-latest
-    environment: Prod
+    environment: prod
     steps:
       - name: Checkout
         uses: actions/checkout@v4
