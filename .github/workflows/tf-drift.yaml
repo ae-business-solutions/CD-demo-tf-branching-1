@@ -35,8 +35,12 @@ jobs:
         terraform_version: $TERRAFORM_VERSION
         terraform_wrapper: false
 
-    - name: Terraform Init
-      run: terraform init
+    - name: Terraform init
+      id: init
+      env:
+        TF_ENV: ${{ inputs.target }}
+      run: terraform init -backend-config="key=$TF_ENV.tfstate" -backend-config="container_name=$TF_ENV-branching-state"
+
 
     # An exit code of 0 indicated no changes, 1 a terraform failure, 2 there are pending changes.
     - name: Terraform plan
