@@ -1,4 +1,4 @@
-name: "Terraform Plan & Apply"
+name: "Terraform Plan & Apply for ${{ inputs.env }}"
 
 on:
   workflow_call:
@@ -126,7 +126,7 @@ jobs:
   terraform-apply:
     name: Terraform Apply
     # Run if merging into main, OR pull request
-    if: (github.ref == 'refs/heads/main' || github.event_name == 'pull_request') needs.terraform-plan.outputs.tfplanOutput == 2
+    if: (github.ref == 'refs/heads/main' || github.event_name == 'pull_request') && needs.terraform-plan.outputs.tfplanOutput == 2
     needs: [terraform-plan]
     runs-on: ubuntu-latest
     environment: ${{ inputs.env }}
