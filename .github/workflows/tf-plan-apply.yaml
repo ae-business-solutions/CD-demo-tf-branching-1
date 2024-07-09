@@ -158,10 +158,10 @@ jobs:
           terraform apply -auto-approve -input=false tfplan | tee apply.log
 
           if grep "Apply complete!" apply.log; then
-            echo "summary=$(grep --color=never -r "Apply complete!" apply.log)"
+            echo "summary=$(grep --color=never -r "Apply complete!" apply.log)" >> $GITHUB_OUTPUT
             exit 0
           else
-            echo "summary=Apply Failed see pipeline logs"
+            echo "summary=Apply Failed see pipeline logs" >> $GITHUB_OUTPUT
             exit 1
           fi
       
