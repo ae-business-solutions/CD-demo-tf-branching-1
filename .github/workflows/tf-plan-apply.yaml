@@ -34,7 +34,7 @@ jobs:
     strategy:
       matrix:
         tf_env: ["prod", "nonprod"]
-    environment: ${{ matrix.environment }}
+    environment: ${{ matrix.tf_env }}
     steps:
       - name: Checkout the repository to the runner
         uses: actions/checkout@v4
@@ -81,7 +81,7 @@ jobs:
       - name: Publish Plan
         uses: actions/upload-artifact@v4
         with:
-          name: tfplan-${{ matrix.environment }}
+          name: tfplan-${{ matrix.tf_env }}
           path: tfplan
       
       # Create string output of Terraform Plan
