@@ -156,7 +156,14 @@ jobs:
         id: tf-apply
         run: |
           terraform apply -auto-approve -input=false tfplan | tee apply.log
-          echo "summary=$(grep --color=never -r "Apply complete!" apply.log)" >> $GITHUB_OUTPUT
+
+          if grep "Apply complete!" apply.log; then
+            echo "summary=$(grep --color=never -r "Apply complete!" apply.log)"
+            exit 0
+          else
+            echo "summary=Apply Failed see pipeline logs"
+            exit 1
+          fi
       
        # Publish Terraform Apply as task summary
       - name: Publish Terraform Apply to Task Summary

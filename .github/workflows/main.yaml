@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   plan-and-apply:
-    name: "Terraform Plan and Apply workflows"
+    name: "tf workflow"
     uses: ./.github/workflows/tf-plan-apply.yaml
     strategy:
       matrix:
