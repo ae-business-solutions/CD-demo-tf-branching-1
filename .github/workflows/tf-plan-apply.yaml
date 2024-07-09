@@ -54,7 +54,7 @@ jobs:
         id: init
         env:
           TF_ENV: ${{ matrix.tf_env }}
-        run: terraform init -backend-config='key=$TF_ENV.tfstate'
+        run: terraform init -backend-config="key=$TF_ENV.tfstate" -backend-config="container_name=$TF_ENV-branching-state"
 
       - name: Terraform validate
         id: validate
@@ -67,7 +67,7 @@ jobs:
           TF_ENV: ${{ matrix.tf_env }}
         run: |
           export exitcode=0
-          terraform plan -var-file=$TF_ENV -detailed-exitcode -no-color -out tfplan || export exitcode=$?
+          terraform plan -var-file=$TF_ENV.tfvars -detailed-exitcode -no-color -out tfplan || export exitcode=$?
 
           echo "exitcode=$exitcode" >> $GITHUB_OUTPUT
           
