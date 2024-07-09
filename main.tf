@@ -4,11 +4,11 @@ resource "azurerm_resource_group" "terraform_demo" {
 }
 
 resource "random_id" "storage" {
-  byte_length = 8
+  byte_length = 4
 }
 
 resource "azurerm_storage_account" "example" {
-  name                     = "tfexample${lower(random_id.storage.dec)}"
+  name                     = "tfexample${random_id.storage.hex}"
   resource_group_name      = azurerm_resource_group.terraform_demo.name
   location                 = azurerm_resource_group.terraform_demo.location
   account_tier             = "Standard"
