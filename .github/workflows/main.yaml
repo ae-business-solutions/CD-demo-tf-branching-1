@@ -22,9 +22,9 @@ jobs:
     uses: ./.github/workflows/tf-plan-apply.yaml
     strategy:
       matrix:
-        env: [prod, nonprod]
+        target: [prod, nonprod]
     with:
-      env: ${{ matrix.env }}
+      target: ${{ matrix.target }}
       tf-version: 1.8.3
     secrets:
       ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}

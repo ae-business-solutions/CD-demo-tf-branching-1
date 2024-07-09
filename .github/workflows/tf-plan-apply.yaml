@@ -1,9 +1,10 @@
-name: "Terraform Plan & Apply for ${{ inputs.env }}"
+name: "Terraform Plan & Apply"
+run-name: Deploy to ${{ inputs.target }} by @${{ github.actor }}
 
 on:
   workflow_call:
     inputs:
-      env:
+      target:
         required: true
         type: string
       tf-version:
@@ -51,7 +52,7 @@ jobs:
       - name: Terraform init
         id: init
         env:
-          TF_ENV: ${{ inputs.env }}
+          TF_ENV: ${{ inputs.target }}
         run: terraform init -backend-config="key=$TF_ENV.tfstate" -backend-config="container_name=$TF_ENV-branching-state"
 
       - name: Terraform validate
@@ -62,7 +63,7 @@ jobs:
       - name: Terraform plan
         id: tf-plan
         env: 
-          TF_ENV: ${{ inputs.env }}
+          TF_ENV: ${{ inputs.target }}
         run: |
           export exitcode=0
           terraform plan -var-file=$TF_ENV.tfvars -detailed-exitcode -no-color -out tfplan || export exitcode=$?
@@ -79,7 +80,7 @@ jobs:
       - name: Publish Plan
         uses: actions/upload-artifact@v4
         with:
-          name: tfplan-${{ inputs.env }}
+          name: tfplan-${{ inputs.target }}
           path: tfplan
       
       # Create string output of Terraform Plan
@@ -129,7 +130,7 @@ jobs:
     if: (github.ref == 'refs/heads/main' || github.event_name == 'pull_request') && needs.terraform-plan.outputs.tfplanOutput == 2
     needs: [terraform-plan]
     runs-on: ubuntu-latest
-    environment: ${{ inputs.env }}
+    environment: ${{ inputs.target }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -143,13 +144,13 @@ jobs:
       - name: Terraform init
         id: init
         env:
-          TF_ENV: ${{ inputs.env }}
+          TF_ENV: ${{ inputs.target }}
         run: terraform init -backend-config="key=$TF_ENV.tfstate" -backend-config="container_name=$TF_ENV-branching-state"
 
       - name: Download Plan File
         uses: actions/download-artifact@v4
         with:
-          name: tfplan-${{ inputs.env }}
+          name: tfplan-${{ inputs.target }}
 
       - name: Terraform Apply
         id: tf-apply
