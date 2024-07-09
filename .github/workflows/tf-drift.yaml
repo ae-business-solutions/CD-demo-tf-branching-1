@@ -95,7 +95,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const body = `${process.env.SUMMARY}`;
-            const title = 'Terraform Configuration Drift Detected in $TF_ENV';
+            const title = `Terraform Configuration Drift Detected in ${process.env.TF_ENV}`;
             const creator = 'github-actions[bot]'
           
             // Look to see if there is an existing drift issue
@@ -140,7 +140,7 @@ jobs:
       with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const title = 'Terraform Configuration Drift Detected in $TF_ENV';
+            const title = `Terraform Configuration Drift Detected in ${process.env.TF_ENV}`;
             const creator = 'github-actions[bot]'
           
             // Look to see if there is an existing drift issue
