@@ -3,12 +3,11 @@ locals {
     Environment = "${var.environment}"
     team        = "Cloud&Devops"
     demo        = "true"
-    deployedby  = "Alex"
   }
 }
 
 resource "azurerm_resource_group" "terraform_demo" {
-  name     = "wsi-rg-${var.environment}-tf-branching"
+  name     = "cd-rg-${var.environment}-tf-branching"
   location = "Central US"
   tags     = local.tags
 }
