@@ -7,7 +7,7 @@ locals {
 }
 
 resource "azurerm_resource_group" "terraform_demo" {
-  name     = "cd-rg-${var.environment}-tf-branching"
+  name     = "wsi-rg-${var.environment}-tf-branching"
   location = "Central US"
   tags     = local.tags
 }
