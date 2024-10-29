@@ -3,6 +3,7 @@ locals {
     Environment = "${var.environment}"
     team        = "Cloud&Devops"
     demo        = "true"
+    deployedby  = "Alex"
   }
 }
 
