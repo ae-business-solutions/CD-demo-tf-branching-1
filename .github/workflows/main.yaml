@@ -1,16 +1,16 @@
 name: "Terraform Plan and Apply"
 
-on: 
+on:
   push:
     paths:
-    - '**.tf'
-    - '.github/workflows/*'
+      - "**.tf"
+      - ".github/workflows/*"
   pull_request:
     branches:
-    - main
+      - main
     paths:
-    - '**.tf'
-    - '.github/workflows/*'
+      - "**.tf"
+      - ".github/workflows/*"
 
 permissions:
   id-token: write
