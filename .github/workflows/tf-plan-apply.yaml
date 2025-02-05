@@ -1,0 +1,187 @@
+name: plan and apply workflow
+
+on:
+  workflow_call:
+    inputs:
+      target:
+        required: true
+        type: string
+      tf-version:
+        required: false
+        default: 1.8.3
+        type: string
+    secrets:
+      ARM_CLIENT_ID:
+        required: true
+      ARM_CLIENT_SECRET:
+        required: true
+      ARM_TENANT_ID:
+        required: true
+      ARM_SUBSCRIPTION_ID:
+        required: true
+
+env:
+  TF_LOG: ERROR
+  ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+  ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID}}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID}}
+
+jobs:
+  terraform-plan:
+    name: "Terraform Plan"
+    runs-on: ubuntu-latest
+    outputs:
+      tfplanOutput: ${{ steps.tf-plan.outputs.exitcode }}
+    steps:
+      - name: Checkout the repository to the runner
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.tf-version }}
+          terraform_wrapper: false
+
+      - name: Terraform format
+        id: fmt
+        run: terraform fmt -check
+        continue-on-error: true
+
+      - name: Terraform init
+        id: init
+        env:
+          TF_ENV: ${{ inputs.target }}
+        run: terraform init -backend-config="key=$TF_ENV.tfstate" -backend-config="container_name=$TF_ENV-branching-state"
+
+      - name: Terraform validate
+        id: validate
+        run: terraform validate -no-color
+
+        # An exit code of 0 indicated no changes, 1 a terraform failure, 2 there are pending changes.
+      - name: Terraform plan
+        id: tf-plan
+        env: 
+          TF_ENV: ${{ inputs.target }}
+        run: |
+          export exitcode=0
+          terraform plan -var-file=$TF_ENV.tfvars -detailed-exitcode -no-color -out tfplan || export exitcode=$?
+
+          echo "exitcode=$exitcode" >> $GITHUB_OUTPUT
+          
+          if [ $exitcode -eq 1 ]; then
+            echo Terraform Plan Failed!
+            exit 1
+          else 
+            exit 0
+          fi
+
+      - name: Publish Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ inputs.target }}
+          path: tfplan
+      
+      # Create string output of Terraform Plan
+      - name: Create String Output
+        id: tf-plan-string
+        run: |
+          TERRAFORM_PLAN=$(terraform show -no-color tfplan)
+          
+          delimiter="$(openssl rand -hex 8)"
+          echo "summary<<${delimiter}" >> $GITHUB_OUTPUT
+          echo "## Terraform Plan Output" >> $GITHUB_OUTPUT
+          echo "<details><summary>Click to expand</summary>" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo '```terraform' >> $GITHUB_OUTPUT
+          echo "$TERRAFORM_PLAN" >> $GITHUB_OUTPUT
+          echo '```' >> $GITHUB_OUTPUT
+          echo "</details>" >> $GITHUB_OUTPUT
+          echo "${delimiter}" >> $GITHUB_OUTPUT
+
+       # Publish Terraform Plan as task summary
+      - name: Publish Terraform Plan to Task Summary
+        env:
+          SUMMARY: ${{ steps.tf-plan-string.outputs.summary }}
+        run: |
+          echo "$SUMMARY" >> $GITHUB_STEP_SUMMARY
+      
+      # If this is a PR post the changes
+      - name: Push Terraform Output to PR
+        if: github.ref != 'refs/heads/main' && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          SUMMARY: "${{ steps.tf-plan-string.outputs.summary }}"
+        with:
+            github-token: ${{ secrets.GITHUB_TOKEN }}
+            script: |
+              const body = `${process.env.SUMMARY}`;
+              github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: body
+              })
+
+  terraform-apply:
+    name: Terraform Apply
+    # Run if merging into main, OR pull request
+    if: (github.ref == 'refs/heads/main' || github.event_name == 'pull_request') && needs.terraform-plan.outputs.tfplanOutput == 2
+    needs: [terraform-plan]
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.target }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform with specified version on the runner
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.tf-version }}
+          terraform_wrapper: false
+      
+      - name: Terraform init
+        id: init
+        env:
+          TF_ENV: ${{ inputs.target }}
+        run: terraform init -backend-config="key=$TF_ENV.tfstate" -backend-config="container_name=$TF_ENV-branching-state"
+
+      - name: Download Plan File
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan-${{ inputs.target }}
+
+      - name: Terraform Apply
+        id: tf-apply
+        run: |
+          terraform apply -auto-approve -input=false tfplan | tee apply.log
+
+          if grep "Apply complete!" apply.log; then
+            echo "summary=$(grep --color=never -r "Apply complete!" apply.log)" >> $GITHUB_OUTPUT
+            exit 0
+          else
+            echo "summary=Apply Failed see pipeline logs" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+      
+       # Publish Terraform Apply as task summary
+      - name: Publish Terraform Apply to Task Summary
+        env:
+          SUMMARY: ${{ steps.tf-apply.outputs.summary }}
+        run: |
+          echo "$SUMMARY" >> $GITHUB_STEP_SUMMARY
+      
+      # If this is a PR post the changes
+      - name: Push Terraform Output to PR
+        if: github.ref != 'refs/heads/main' && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+            github-token: ${{ secrets.GITHUB_TOKEN }}
+            script: |
+              const body = `Terraform Applied`;
+              github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: body
+              })
