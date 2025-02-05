@@ -16,6 +16,7 @@ terraform {
 }
 
 provider "azurerm" {
+  subscription_id = "8e563f2f-b3f8-4515-9a39-ab628973090e" #AEBS Dev/Test
   features {
     key_vault {
       purge_soft_delete_on_destroy    = true

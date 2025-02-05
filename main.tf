@@ -28,3 +28,9 @@ resource "azurerm_storage_account" "example" {
     prevent_destroy = true
   }
 }
+
+resource "azurerm_storage_share" "presentations" {
+  name                 = "presentations"
+  storage_account_id = azurerm_storage_account.example.id
+  quota = 50
+}
